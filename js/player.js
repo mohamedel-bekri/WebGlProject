@@ -21,6 +21,8 @@ export function createPlayer(camera, canvas, solidObjects) {
     active: false,
     keys: new Set(),
     speed: 5,
+    health: 100,
+    maxHealth: 100,
     height: PLAYER_HEIGHT,
     verticalSpeed: 0,
     grounded: true,
