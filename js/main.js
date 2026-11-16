@@ -3,6 +3,8 @@ import { createArena } from './arena.js';
 import { createPlayer, updatePlayer } from './player.js';
 import { createWeapon } from './weapon.js';
 import { createHUD } from './hud.js';
+import { createEnemies } from './enemies.js';
+import { createSoundSystem } from './sound.js';
 
 // The scene contains all objects that Three.js will draw.
 const scene = new THREE.Scene();
@@ -23,6 +25,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // Build the arena, then pass its solid objects to the player for collision.
 const arena = createArena(scene);
+const sound = createSoundSystem();
+const enemies = createEnemies(scene, arena.solids, sound);
 const player = createPlayer(camera, canvas, arena.solids);
 const hud = createHUD();
 const weapon = createWeapon(camera, (amount) => hud.setAmmo(amount));
@@ -56,21 +60,49 @@ function clearBulletHoles() {
 }
 
 let gameState = 'menu';
+let score = 0;
 const clock = new THREE.Clock();
 
 function shoot(event) {
   if (event.button !== 0 || gameState !== 'playing') return;
   if (!weapon.fire(clock.elapsedTime)) return;
+  sound.shoot();
+
+  // Alerte sonore des ennemis proches du tir
+  enemies.alertFromGunshot(player.camera.position);
 
   raycaster.setFromCamera(aimPoint, camera);
-  const hits = raycaster.intersectObjects(arena.shootables, false);
-  if (hits.length > 0) addBulletHole(hits[0]);
+  // On teste les murs/cibles ET les hitboxes (corps + tête) des ennemis en vie
+  const activeEnemyHitboxes = enemies.hitboxes.filter((box) => box.userData.enemy.alive);
+  const targets = [...arena.shootables, ...activeEnemyHitboxes];
+  const hits = raycaster.intersectObjects(targets, false);
+
+  if (hits.length > 0) {
+    const firstHit = hits[0];
+    const hitEnemy = firstHit.object.userData.enemy;
+
+    if (hitEnemy && hitEnemy.alive) {
+      const isHeadshot = firstHit.object.userData.isHead;
+      const damageAmount = isHeadshot ? 100 : 35;
+      sound.hitEnemy(isHeadshot);
+      const killed = enemies.damage(hitEnemy, damageAmount);
+
+      if (killed) {
+        score += isHeadshot ? 200 : 100;
+        hud.setWaveStats(enemies.getWave(), enemies.getAliveCount(), score);
+      }
+    } else {
+      addBulletHole(firstHit);
+    }
+  }
 }
 
 function startGame() {
   gameState = 'playing';
   player.active = true;
   hud.showGame();
+  hud.setWaveStats(enemies.getWave(), enemies.getAliveCount(), score);
+  hud.announceWave(enemies.getWave());
   player.controls.lock();
 }
 
@@ -81,8 +113,33 @@ function resumeGame() {
   player.controls.lock();
 }
 
+function damagePlayer(amount) {
+  if (gameState !== 'playing') return;
+  sound.playerHurt();
+  player.health = Math.max(0, player.health - amount);
+  hud.setHealth(player.health, player.maxHealth);
+  hud.triggerDamageFlash();
+
+  if (player.health <= 0) {
+    gameState = 'gameover';
+    player.active = false;
+    player.keys.clear();
+    hud.showGameOver(enemies.getWave(), score);
+    if (player.controls.isLocked) {
+      player.controls.unlock();
+    }
+  }
+}
+
 function restartGame() {
   clearBulletHoles();
+  const initialCount = enemies.reset();
+  score = 0;
+  player.health = player.maxHealth;
+  hud.setHealth(player.health, player.maxHealth);
+  hud.setWaveStats(1, initialCount, score);
+  hud.announceWave(1);
+
   const position = player.camera.position;
   position.set(6, player.height, 10);
   player.camera.rotation.set(0, 0, 0, 'YXZ');
@@ -137,6 +194,7 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyR' && gameState === 'playing') {
     weapon.reload();
+    sound.reload();
   }
 });
 
@@ -157,6 +215,19 @@ function animate() {
   requestAnimationFrame(animate);
   const deltaTime = Math.min(clock.getDelta(), 0.05);
   const walking = updatePlayer(player, deltaTime);
+
+  if (gameState === 'playing') {
+    enemies.update(
+      deltaTime,
+      player.camera.position,
+      (damage) => damagePlayer(damage),
+      (newWave, spawnedCount) => {
+        hud.setWaveStats(newWave, spawnedCount, score);
+        hud.announceWave(newWave);
+      },
+    );
+  }
+
   weapon.update(clock.elapsedTime, deltaTime, walking);
   renderer.render(scene, camera);
 }
@@ -165,9 +236,12 @@ animate();
 
 // Release controls and dispose of renderer resources when the page closes.
 window.addEventListener('beforeunload', () => {
+  sound.dispose();
+  enemies.dispose();
   player.dispose();
   weapon.dispose();
   renderer.dispose();
   bulletHoleGeometry.dispose();
   bulletHoleMaterial.dispose();
-}, { once: true });
+},
+ { once: true });
