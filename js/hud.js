@@ -7,6 +7,20 @@ export function createHUD() {
   const startButton = document.querySelector('#start-button');
   const resumeButton = document.querySelector('#resume-button');
   const restartButton = document.querySelector('#restart-button');
+  const settingsScreen = document.querySelector('#settings-screen');
+  const settingsButton = document.querySelector('#settings-button');
+  const settingsBackButton = document.querySelector('#settings-back-button');
+  const qualityButtons = document.querySelectorAll('[data-quality]');
+
+  settingsButton.addEventListener('click', () => {
+    pauseScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  });
+
+  settingsBackButton.addEventListener('click', () => {
+    settingsScreen.classList.add('hidden');
+    pauseScreen.classList.remove('hidden');
+  });
 
   // --- Panneau supérieur : Vague, Ennemis restants et Score ---
   const topStatsBar = document.createElement('div');
@@ -156,24 +170,28 @@ export function createHUD() {
       gameOverRestartBtn.addEventListener('click', buttonActions.restart);
     },
     showMenu() {
+      settingsScreen.classList.add('hidden');
       startScreen.classList.remove('hidden');
       pauseScreen.classList.add('hidden');
       hud.classList.add('hidden');
       gameOverScreen.style.display = 'none';
     },
     showGame() {
+      settingsScreen.classList.add('hidden');
       startScreen.classList.add('hidden');
       pauseScreen.classList.add('hidden');
       hud.classList.remove('hidden');
       gameOverScreen.style.display = 'none';
     },
     showPause() {
+      settingsScreen.classList.add('hidden');
       startScreen.classList.add('hidden');
       pauseScreen.classList.remove('hidden');
       hud.classList.add('hidden');
       gameOverScreen.style.display = 'none';
     },
     showGameOver(wave = 1, score = 0) {
+      settingsScreen.classList.add('hidden');
       startScreen.classList.add('hidden');
       pauseScreen.classList.add('hidden');
       hud.classList.add('hidden');
@@ -212,6 +230,16 @@ export function createHUD() {
       flashTimeout = setTimeout(() => {
         damageFlash.style.opacity = '0';
       }, 150);
+    },
+    onQualityChange(callback) {
+      qualityButtons.forEach((button) => {
+        button.addEventListener('click', () => callback(button.dataset.quality));
+      });
+    },
+    setQualityActive(level) {
+      qualityButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.quality === level);
+      });
     },
   };
 }

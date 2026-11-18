@@ -147,3 +147,19 @@ button:hover {
     right: 12px;
   }
 }
+
+.quality-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.quality-options .secondary-button {
+  margin-top: 0;
+}
+
+.quality-options .secondary-button.active {
+  border-color: #f2f2f2;
+  background: #c4c8c4;
+  color: #202321;
+}

@@ -104,5 +104,5 @@ export function createArena(scene) {
   sunlight.shadow.bias = -0.0005;
   scene.add(sunlight);
 
-  return { solids, targets: targetMeshes, shootables: [...solids, ...targetMeshes] };
+  return { solids, targets: targetMeshes, shootables: [...solids, ...targetMeshes], sunlight };
 }

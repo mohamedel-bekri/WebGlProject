@@ -30,6 +30,38 @@ const enemies = createEnemies(scene, arena.solids, sound);
 const player = createPlayer(camera, canvas, arena.solids);
 const hud = createHUD();
 const weapon = createWeapon(camera, (amount) => hud.setAmmo(amount));
+// Graphics quality presets (Low / Medium / High).
+const QUALITY_PRESETS = {
+  low: { pixelRatio: 0.5, shadowSize: 512 },
+  medium: { pixelRatio: 0.75, shadowSize: 1024 },
+  high: { pixelRatio: Math.min(window.devicePixelRatio, 2), shadowSize: 2048 },
+};
+
+function applyQuality(level) {
+  const preset = QUALITY_PRESETS[level] ?? QUALITY_PRESETS.high;
+  renderer.setPixelRatio(preset.pixelRatio);
+  resizeRenderer();
+
+  const shadow = arena.sunlight.shadow;
+  shadow.mapSize.set(preset.shadowSize, preset.shadowSize);
+  if (shadow.map) {
+    shadow.map.dispose();
+    shadow.map = null;
+  }
+
+  hud.setQualityActive(level);
+  try {
+    localStorage.setItem('graphicsQuality', level);
+  } catch {}
+}
+
+hud.onQualityChange(applyQuality);
+
+let savedQuality = 'high';
+try {
+  savedQuality = localStorage.getItem('graphicsQuality') || 'high';
+} catch {}
+applyQuality(savedQuality);
 
 // Shooting checks the center of the camera and adds a small mark to the hit.
 const raycaster = new THREE.Raycaster();
